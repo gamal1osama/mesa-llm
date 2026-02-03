@@ -70,3 +70,20 @@ If you would like to add a feature, please reach out via [ticket](https://github
 A feature is most likely to be added if you build it!
 
 Don't forget to check out the [Contributors guide](https://github.com/mesa/mesa-llm/blob/main/CONTRIBUTING.md).
+
+## Configuration
+
+### API Keys & .env file
+
+Mesa-LLM requires API keys for external LLM providers. We include an example template at [.env.example](.env.example) you can copy and edit.
+
+1. Copy the example to a local `.env` file:
+```bash
+cp .env.example .env
+```
+
+2. Edit the `.env` file to include your API keys for the LLM providers you intend to use. For example:
+```env
+OPENAI_API_KEY=your_openai_api_key_here
+ANTHROPIC_API_KEY=your_anthropic_api_key_here
+```
