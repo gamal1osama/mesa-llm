@@ -17,6 +17,9 @@ Learn how to define a minimal LLMAgent that reasons using an LLM while remaining
 - [Negotiation Model Tutorial](https://github.com/mesa/mesa-llm/blob/main/docs/negotiation_model_tutorial.md)
 Learn how multiple LLM-powered agents reason, communicate, and negotiate within a shared model.
 
+- [Epstein Civil Violence Model Tutorial](https://github.com/mesa/mesa-llm/blob/main/docs/epstein_civil_violence_tutorial.md)
+Learn how to build a spatial agent-based model with LLM-powered agents that use tools, make decisions based on local observations, and exhibit emergent collective behavior.
+
 ## Examples
 Mesa-llm ships with example models demonstrating how language-based reasoning integrates with classic agent-based modeling patterns.
 
