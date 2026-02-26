@@ -33,7 +33,7 @@ def test_apply_plan_adds_to_memory(monkeypatch):
 
             x, y = pos
 
-            agent = agents.to_list()[0]
+            agent = next(iter(agents))
             self.grid.place_agent(agent, (x, y))
             return agent
 
@@ -87,7 +87,7 @@ def test_generate_obs_with_one_neighbor(monkeypatch):
                 internal_state=["test_state"],
             )
             x, y = pos
-            agent = agents.to_list()[0]
+            agent = next(iter(agents))
             self.grid.place_agent(agent, (x, y))
             return agent
 
@@ -145,7 +145,7 @@ def test_send_message_updates_both_agents_memory(monkeypatch):
                 internal_state=["test_state"],
             )
             x, y = pos
-            agent = agents.to_list()[0]
+            agent = next(iter(agents))
             self.grid.place_agent(agent, (x, y))
             return agent
 
@@ -205,7 +205,7 @@ async def test_aapply_plan_adds_to_memory(monkeypatch):
             )
 
             x, y = pos
-            agent = agents.to_list()[0]
+            agent = next(iter(agents))
             self.grid.place_agent(agent, (x, y))
             return agent
 
@@ -252,7 +252,7 @@ async def test_agenerate_obs_with_one_neighbor(monkeypatch):
                 internal_state=["test_state"],
             )
             x, y = pos
-            agent = agents.to_list()[0]
+            agent = next(iter(agents))
             self.grid.place_agent(agent, (x, y))
             return agent
 
@@ -305,7 +305,8 @@ async def test_async_wrapper_calls_pre_and_post(monkeypatch):
         system_prompt="test",
         vision=-1,
         internal_state=[],
-    ).to_list()[0]
+    )
+    agent = next(iter(agent))
 
     calls = {"pre": 0, "post": 0}
 
