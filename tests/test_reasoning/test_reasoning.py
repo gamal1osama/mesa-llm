@@ -43,10 +43,9 @@ class TestPlan:
 class TestReasoningBase:
     """Tests for the abstract Reasoning base class."""
 
-    def test_execute_tool_call_generates_plan(self, llm_response_factory):
+    def test_execute_tool_call_generates_plan(self, llm_response_factory, mock_agent):
         """Test that the base execute_tool_call method produces a Plan."""
         # 1. Setup a mock agent with all necessary components
-        mock_agent = Mock()
         mock_agent.model.steps = 5
 
         mock_llm_response = llm_response_factory(content="Final LLM message")

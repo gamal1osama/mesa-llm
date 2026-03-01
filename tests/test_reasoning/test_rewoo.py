@@ -20,9 +20,8 @@ def _tool_call(tool_id: str):
 class TestReWOOReasoning:
     """Test the ReWOOReasoning class."""
 
-    def test_rewoo_reasoning_initialization(self):
+    def test_rewoo_reasoning_initialization(self, mock_agent):
         """Test ReWOOReasoning initialization."""
-        mock_agent = Mock()
         reasoning = ReWOOReasoning(mock_agent)
 
         assert reasoning.agent == mock_agent
@@ -30,9 +29,8 @@ class TestReWOOReasoning:
         assert reasoning.current_plan is None
         assert reasoning.current_obs is None
 
-    def test_get_rewoo_system_prompt(self):
+    def test_get_rewoo_system_prompt(self, mock_agent):
         """Test get_rewoo_system_prompt."""
-        mock_agent = Mock()
         mock_agent.memory = Mock()
         mock_agent.memory.format_long_term.return_value = "Long term memory content"
         mock_agent.memory.format_short_term.return_value = "Short term memory content"
@@ -51,9 +49,8 @@ class TestReWOOReasoning:
         assert "step_1" in prompt
         assert "contingency" in prompt
 
-    def test_plan_with_remaining_tool_calls(self):
+    def test_plan_with_remaining_tool_calls(self, mock_agent):
         """Test plan method when there are remaining tool calls."""
-        mock_agent = Mock()
         mock_agent.generate_obs = Mock()
 
         reasoning = ReWOOReasoning(mock_agent)
@@ -78,9 +75,8 @@ class TestReWOOReasoning:
         assert reasoning.remaining_tool_calls == 1
         mock_agent.generate_obs.assert_not_called()
 
-    def test_plan_new_plan_generation(self, llm_response_factory):
+    def test_plan_new_plan_generation(self, llm_response_factory, mock_agent):
         """Test plan method when generating a new plan."""
-        mock_agent = Mock()
         mock_agent.step_prompt = "Default step prompt"
         mock_agent.generate_obs.return_value = Observation(
             step=1, self_state={}, local_state={}
@@ -114,9 +110,8 @@ class TestReWOOReasoning:
         assert reasoning.current_obs is not None
         mock_agent.generate_obs.assert_called_once()
 
-    def test_plan_with_custom_prompt(self, llm_response_factory):
+    def test_plan_with_custom_prompt(self, llm_response_factory, mock_agent):
         """Test plan method with custom prompt."""
-        mock_agent = Mock()
         mock_agent.generate_obs.return_value = Observation(
             step=1, self_state={}, local_state={}
         )
@@ -146,9 +141,8 @@ class TestReWOOReasoning:
         assert isinstance(result, Plan)
         assert reasoning.remaining_tool_calls == 1
 
-    def test_plan_with_selected_tools(self, llm_response_factory):
+    def test_plan_with_selected_tools(self, llm_response_factory, mock_agent):
         """Test plan method with selected tools."""
-        mock_agent = Mock()
         mock_agent.step_prompt = "Default step prompt"
         mock_agent.generate_obs.return_value = Observation(
             step=1, self_state={}, local_state={}
@@ -180,9 +174,8 @@ class TestReWOOReasoning:
         assert isinstance(result, Plan)
         mock_agent.tool_manager.get_all_tools_schema.assert_called_with(selected_tools)
 
-    def test_plan_no_prompt_error(self):
+    def test_plan_no_prompt_error(self, mock_agent):
         """Test plan method raises error when no prompt is provided."""
-        mock_agent = Mock()
         mock_agent.step_prompt = None
         mock_agent.generate_obs.return_value = Observation(
             step=1, self_state={}, local_state={}
@@ -196,9 +189,8 @@ class TestReWOOReasoning:
         ):
             reasoning.plan()
 
-    def test_plan_with_no_tool_calls(self, llm_response_factory):
+    def test_plan_with_no_tool_calls(self, llm_response_factory, mock_agent):
         """Test plan method when execution returns no tool calls."""
-        mock_agent = Mock()
         mock_agent.step_prompt = "Default step prompt"
         mock_agent.generate_obs.return_value = Observation(
             step=1, self_state={}, local_state={}
@@ -228,9 +220,8 @@ class TestReWOOReasoning:
         assert isinstance(result, Plan)
         assert reasoning.remaining_tool_calls == 0
 
-    def test_aplan_with_remaining_tool_calls(self):
+    def test_aplan_with_remaining_tool_calls(self, mock_agent):
         """Test aplan method when there are remaining tool calls."""
-        mock_agent = Mock()
         mock_agent.generate_obs = Mock()
 
         reasoning = ReWOOReasoning(mock_agent)
@@ -250,9 +241,8 @@ class TestReWOOReasoning:
         assert reasoning.remaining_tool_calls == 0
         mock_agent.generate_obs.assert_not_called()
 
-    def test_aplan_new_plan_generation(self, llm_response_factory):
+    def test_aplan_new_plan_generation(self, llm_response_factory, mock_agent):
         """Test aplan method when generating a new plan."""
-        mock_agent = Mock()
         mock_agent.generate_obs.return_value = Observation(
             step=1, self_state={}, local_state={}
         )
@@ -291,9 +281,8 @@ class TestReWOOReasoning:
         assert reasoning.current_obs is not None
         mock_agent.generate_obs.assert_called_once()
 
-    def test_aplan_with_selected_tools(self, llm_response_factory):
+    def test_aplan_with_selected_tools(self, llm_response_factory, mock_agent):
         """Test aplan method with selected tools."""
-        mock_agent = Mock()
         mock_agent.generate_obs.return_value = Observation(
             step=1, self_state={}, local_state={}
         )
@@ -328,9 +317,8 @@ class TestReWOOReasoning:
         assert isinstance(result, Plan)
         mock_agent.tool_manager.get_all_tools_schema.assert_called_with(selected_tools)
 
-    def test_aplan_with_no_tool_calls(self, llm_response_factory):
+    def test_aplan_with_no_tool_calls(self, llm_response_factory, mock_agent):
         """Test aplan method when execution returns no tool calls."""
-        mock_agent = Mock()
         mock_agent.generate_obs.return_value = Observation(
             step=1, self_state={}, local_state={}
         )
@@ -361,9 +349,8 @@ class TestReWOOReasoning:
         assert isinstance(result, Plan)
         assert reasoning.remaining_tool_calls == 0
 
-    def test_remaining_tool_calls_decrement(self):
+    def test_remaining_tool_calls_decrement(self, mock_agent):
         """Test that remaining_tool_calls is properly decremented."""
-        mock_agent = Mock()
         mock_agent.generate_obs = Mock()
 
         reasoning = ReWOOReasoning(mock_agent)

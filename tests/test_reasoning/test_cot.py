@@ -13,16 +13,14 @@ from mesa_llm.reasoning.reasoning import Observation, Plan
 
 
 class TestCoTReasoning:
-    def test_cot_reasoning_initialization(self):
+    def test_cot_reasoning_initialization(self, mock_agent):
         """Test CoTReasoning initialization."""
-        mock_agent = Mock()
         reasoning = CoTReasoning(mock_agent)
 
         assert reasoning.agent == mock_agent
 
-    def test_get_cot_system_prompt_with_memory(self):
+    def test_get_cot_system_prompt_with_memory(self, mock_agent):
         """Test get_cot_system_prompt with memory methods available."""
-        mock_agent = Mock()
         mock_agent.memory = Mock()
         mock_agent.memory.format_long_term.return_value = "Long term memory content"
         mock_agent.memory.format_short_term.return_value = "Short term memory content"
@@ -91,9 +89,8 @@ class TestCoTReasoning:
             content={"content": str(obs)},
         )
 
-    def test_plan_with_selected_tools(self, llm_response_factory):
+    def test_plan_with_selected_tools(self, llm_response_factory, mock_agent):
         """Test plan method with selected tools."""
-        mock_agent = Mock()
         mock_agent.step_prompt = "You are an agent in a simulatio"
         mock_agent.memory = Mock()
         mock_agent.memory.format_long_term.return_value = "Long term memory"
@@ -120,9 +117,8 @@ class TestCoTReasoning:
         # Check that tool schema was called with selected tools
         assert mock_agent.tool_manager.get_all_tools_schema.call_count == 2
 
-    def test_plan_no_prompt_error(self):
+    def test_plan_no_prompt_error(self, mock_agent):
         """Test plan method raises error when no prompt is provided."""
-        mock_agent = Mock()
         mock_agent.step_prompt = None
         mock_agent.memory = Mock()
 
@@ -134,9 +130,8 @@ class TestCoTReasoning:
         ):
             reasoning.plan(obs=obs)
 
-    def test_aplan_async_version(self, llm_response_factory):
+    def test_aplan_async_version(self, llm_response_factory, mock_agent):
         """Test aplan async method."""
-        mock_agent = Mock()
         mock_agent.memory = Mock()
         mock_agent.memory.format_long_term.return_value = "Long term memory"
         mock_agent.memory.format_short_term.return_value = "Short term memory"
