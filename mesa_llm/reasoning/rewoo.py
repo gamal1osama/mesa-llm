@@ -168,7 +168,7 @@ class ReWOOReasoning(Reasoning):
             current_plan.tool_calls = tool_call
             return Plan(llm_plan=current_plan, step=self.current_obs.step, ttl=1)
 
-        self.current_obs = self.agent.generate_obs()
+        self.current_obs = await self.agent.agenerate_obs()
         llm = self.agent.llm
         system_prompt = self.get_rewoo_system_prompt(self.current_obs)
 
