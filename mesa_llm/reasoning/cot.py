@@ -1,4 +1,3 @@
-import inspect
 from typing import TYPE_CHECKING
 
 from mesa_llm.reasoning.reasoning import Observation, Plan, Reasoning
@@ -165,11 +164,7 @@ class CoTReasoning(Reasoning):
                 raise ValueError("No prompt provided and agent.step_prompt is None.")
 
         if obs is None:
-            agenerate_obs = getattr(self.agent, "agenerate_obs", None)
-            if agenerate_obs is not None and inspect.iscoroutinefunction(agenerate_obs):
-                obs = await self.agent.agenerate_obs()
-            else:
-                obs = self.agent.generate_obs()
+            obs = await self.agent.agenerate_obs()
 
         step = obs.step + 1
         llm = self.agent.llm

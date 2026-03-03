@@ -1,4 +1,3 @@
-import inspect
 import json
 from typing import TYPE_CHECKING
 
@@ -119,11 +118,7 @@ class ReActReasoning(Reasoning):
         Asynchronous version of plan() method for parallel planning.
         """
         if obs is None:
-            agenerate_obs = getattr(self.agent, "agenerate_obs", None)
-            if agenerate_obs is not None and inspect.iscoroutinefunction(agenerate_obs):
-                obs = await self.agent.agenerate_obs()
-            else:
-                obs = self.agent.generate_obs()
+            obs = await self.agent.agenerate_obs()
 
         # ---------------- prepare the prompt ----------------
         self.agent.llm.system_prompt = self.get_react_system_prompt()

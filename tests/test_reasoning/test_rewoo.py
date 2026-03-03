@@ -284,10 +284,10 @@ class TestReWOOReasoning:
         mock_agent.generate_obs.assert_not_called()
 
     def test_aplan_new_plan_generation(self):
-        """Test aplan method when generating a new plan."""
+        """Test aplan uses agenerate_obs (async) not generate_obs (sync)."""
         mock_agent = Mock()
-        mock_agent.generate_obs.return_value = Observation(
-            step=1, self_state={}, local_state={}
+        mock_agent.agenerate_obs = AsyncMock(
+            return_value=Observation(step=1, self_state={}, local_state={})
         )
         mock_agent.memory = Mock()
         mock_agent.memory.format_long_term.return_value = "Long term memory"
@@ -297,20 +297,14 @@ class TestReWOOReasoning:
         mock_agent.tool_manager = Mock()
         mock_agent.tool_manager.get_all_tools_schema.return_value = {}
 
-        # Mock the async LLM response for planning
         mock_plan_response = Mock()
         mock_plan_response.choices = [Mock()]
         mock_plan_response.choices[0].message.content = "Async plan content"
 
-        # Mock the async LLM response for execution
         mock_exec_response = Mock()
         mock_exec_response.choices = [Mock()]
         mock_exec_response.choices[0].message = Mock()
-        mock_exec_response.choices[0].message.tool_calls = [
-            Mock(),
-            Mock(),
-            Mock(),
-        ]  # 3 tool calls
+        mock_exec_response.choices[0].message.tool_calls = [Mock(), Mock(), Mock()]
 
         mock_agent.llm.agenerate = AsyncMock(
             side_effect=[mock_plan_response, mock_exec_response]
@@ -338,7 +332,7 @@ class TestReWOOReasoning:
             selected_tools=None,
             ttl=7,
         )
-        mock_agent.generate_obs.assert_called_once()
+        mock_agent.agenerate_obs.assert_awaited_once()
 
     def test_plan_uses_provided_obs_without_regeneration(self):
         """Fresh planning should use provided obs and skip generate_obs()."""
@@ -426,8 +420,8 @@ class TestReWOOReasoning:
     def test_aplan_with_selected_tools(self):
         """Test aplan method with selected tools."""
         mock_agent = Mock()
-        mock_agent.generate_obs.return_value = Observation(
-            step=1, self_state={}, local_state={}
+        mock_agent.agenerate_obs = AsyncMock(
+            return_value=Observation(step=1, self_state={}, local_state={})
         )
         mock_agent.memory = Mock()
         mock_agent.memory.format_long_term.return_value = "Long term memory"
@@ -437,12 +431,10 @@ class TestReWOOReasoning:
         mock_agent.tool_manager = Mock()
         mock_agent.tool_manager.get_all_tools_schema.return_value = {}
 
-        # Mock the async LLM response for planning
         mock_plan_response = Mock()
         mock_plan_response.choices = [Mock()]
         mock_plan_response.choices[0].message.content = "Async plan content"
 
-        # Mock the async LLM response for execution
         mock_exec_response = Mock()
         mock_exec_response.choices = [Mock()]
         mock_exec_response.choices[0].message = Mock()
@@ -468,8 +460,8 @@ class TestReWOOReasoning:
     def test_aplan_with_no_tool_calls(self):
         """Test aplan method when execution returns no tool calls."""
         mock_agent = Mock()
-        mock_agent.generate_obs.return_value = Observation(
-            step=1, self_state={}, local_state={}
+        mock_agent.agenerate_obs = AsyncMock(
+            return_value=Observation(step=1, self_state={}, local_state={})
         )
         mock_agent.memory = Mock()
         mock_agent.memory.format_long_term.return_value = "Long term memory"
@@ -479,23 +471,19 @@ class TestReWOOReasoning:
         mock_agent.tool_manager = Mock()
         mock_agent.tool_manager.get_all_tools_schema.return_value = {}
 
-        # Mock the async LLM response for planning
         mock_plan_response = Mock()
         mock_plan_response.choices = [Mock()]
         mock_plan_response.choices[0].message.content = "Async plan content"
 
-        # Mock the async LLM response for execution with no tool_calls attribute
         mock_exec_response = Mock()
         mock_exec_response.choices = [Mock()]
         mock_exec_response.choices[0].message = Mock()
-        # Don't set tool_calls attribute
 
         mock_agent.llm.agenerate = AsyncMock(
             side_effect=[mock_plan_response, mock_exec_response]
         )
 
-        # Create a mock plan that doesn't have tool_calls attribute
-        mock_plan_without_tool_calls = Mock(spec=[])  # spec=[] means no attributes
+        mock_plan_without_tool_calls = Mock(spec=[])
         reasoning = ReWOOReasoning(mock_agent)
         reasoning.aexecute_tool_call = AsyncMock(
             return_value=Plan(step=1, llm_plan=mock_plan_without_tool_calls)

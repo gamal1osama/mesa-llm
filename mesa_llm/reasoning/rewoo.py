@@ -1,4 +1,3 @@
-import inspect
 from typing import TYPE_CHECKING
 
 from mesa_llm.reasoning.reasoning import (
@@ -188,11 +187,7 @@ class ReWOOReasoning(Reasoning):
                 raise ValueError("No prompt provided and agent.step_prompt is None.")
 
         if obs is None:
-            agenerate_obs = getattr(self.agent, "agenerate_obs", None)
-            if agenerate_obs is not None and inspect.iscoroutinefunction(agenerate_obs):
-                self.current_obs = await self.agent.agenerate_obs()
-            else:
-                self.current_obs = self.agent.generate_obs()
+            self.current_obs = await self.agent.agenerate_obs()
         else:
             self.current_obs = obs
         llm = self.agent.llm
