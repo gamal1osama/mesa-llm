@@ -40,7 +40,7 @@ BELIEF_COLORS = {
 JOURNALIST_COLOR = "#FF0000"  # bright red — unmistakably visible
 
 # Model parameters exposed to the Solara UI
-OLLAMA_URL = "http://uutjx-34-50-185-200.a.free.pinggy.link"
+OLLAMA_URL = "put_your_ollama_url_here"  # e.g. "http://localhost:11434"
 
 model_params = {
     "seed": {
