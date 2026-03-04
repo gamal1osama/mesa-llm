@@ -201,3 +201,69 @@ def test_move_one_step_on_continuousspace():
 
     assert agent.pos == (2.0, 3.0)
     assert result == "agent 6 moved to (2.0, 3.0)."
+
+
+# --- boundary guard tests -------------------------------------------------------
+# Without the boundary check added to move_one_step, all three tests below would
+# either raise a GridException (SingleGrid/MultiGrid) or a KeyError
+# (OrthogonalMooreGrid) instead of returning the friendly message.
+
+
+def test_move_one_step_boundary_singlegrid_north():
+    """Agent at top edge of SingleGrid trying to go North gets a clear message."""
+    model = DummyModel()
+    model.grid = SingleGrid(width=5, height=5, torus=False)
+
+    agent = DummyAgent(unique_id=20, model=model)
+    model.agents.append(agent)
+    model.grid.place_agent(agent, (2, 4))  # y=4 is the top edge
+
+    result = move_one_step(agent, "North")
+
+    # agent should not have moved
+    assert agent.pos == (2, 4)
+    assert "boundary" in result.lower()
+    assert "North" in result
+
+
+def test_move_one_step_boundary_multigrid_west():
+    """Agent at left edge of MultiGrid trying to go West gets a clear message."""
+    model = DummyModel()
+    model.grid = MultiGrid(width=5, height=5, torus=False)
+
+    agent = DummyAgent(unique_id=21, model=model)
+    model.agents.append(agent)
+    model.grid.place_agent(agent, (0, 2))  # x=0 is the left edge
+
+    result = move_one_step(agent, "West")
+
+    assert agent.pos == (0, 2)
+    assert "boundary" in result.lower()
+    assert "West" in result
+
+
+def test_move_one_step_boundary_orthogonal_grid():
+    """Agent at edge of OrthogonalMooreGrid with no cell in that direction gets a clear message."""
+
+    class _DummyOrthogonalGrid(OrthogonalMooreGrid):
+        pass
+
+    orth_grid = object.__new__(_DummyOrthogonalGrid)
+    start = (0, 1)
+    start_cell = SimpleNamespace(coordinate=start, agents=[])
+    # (-1, 1) does not exist - simulates the grid boundary
+    orth_grid._cells = {start: start_cell}
+
+    model = DummyModel()
+    model.grid = orth_grid
+
+    agent = DummyAgent(unique_id=22, model=model)
+    agent.cell = start_cell
+    model.agents.append(agent)
+
+    result = move_one_step(agent, "North")
+
+    # cell should be unchanged
+    assert agent.cell is start_cell
+    assert "boundary" in result.lower()
+    assert "North" in result
