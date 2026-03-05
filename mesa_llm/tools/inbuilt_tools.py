@@ -1,3 +1,4 @@
+import ast
 from typing import TYPE_CHECKING, Any
 
 from mesa.discrete_space import (
@@ -137,6 +138,27 @@ def speak_to(
         listener_agents_unique_ids: The unique ids of the agents receiving the message
         message: The message to send
     """
+
+    # Normalize: the LLM may pass IDs as a JSON string (e.g. '[5, 9]') or a
+    # bare int rather than a proper list[int], which would silently produce
+    # an empty recipient list.
+    if isinstance(listener_agents_unique_ids, str):
+        try:
+            listener_agents_unique_ids = ast.literal_eval(listener_agents_unique_ids)
+        except Exception:
+            listener_agents_unique_ids = []
+
+    if isinstance(listener_agents_unique_ids, int):
+        listener_agents_unique_ids = [listener_agents_unique_ids]
+
+    if listener_agents_unique_ids is None:
+        listener_agents_unique_ids = []
+
+    try:
+        listener_agents_unique_ids = [int(uid) for uid in listener_agents_unique_ids]
+    except Exception:
+        listener_agents_unique_ids = []
+
     listener_agents = [
         listener_agent
         for listener_agent in agent.model.agents
