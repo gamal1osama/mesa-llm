@@ -201,3 +201,42 @@ def test_move_one_step_on_continuousspace():
 
     assert agent.pos == (2.0, 3.0)
     assert result == "agent 6 moved to (2.0, 3.0)."
+
+
+def test_speak_to_accepts_stringified_list(mocker):
+    """LLM sometimes serializes the list as a JSON string e.g. '[11, 12]'."""
+    model = DummyModel()
+
+    sender = DummyAgent(unique_id=10, model=model)
+    r1 = DummyAgent(unique_id=11, model=model)
+    r2 = DummyAgent(unique_id=12, model=model)
+
+    r1.memory = SimpleNamespace(add_to_memory=mocker.Mock())
+    r2.memory = SimpleNamespace(add_to_memory=mocker.Mock())
+
+    model.agents = [sender, r1, r2]
+
+    # Pass IDs as a stringified list — what the LLM often produces
+    ret = speak_to(sender, "[11, 12]", "hey")
+
+    r1.memory.add_to_memory.assert_called_once()
+    r2.memory.add_to_memory.assert_called_once()
+    assert "11" in ret and "12" in ret
+
+
+def test_speak_to_accepts_bare_int(mocker):
+    """LLM sometimes passes a single int instead of a list."""
+    model = DummyModel()
+
+    sender = DummyAgent(unique_id=10, model=model)
+    r1 = DummyAgent(unique_id=11, model=model)
+
+    r1.memory = SimpleNamespace(add_to_memory=mocker.Mock())
+
+    model.agents = [sender, r1]
+
+    # Pass a bare int — another common LLM encoding
+    ret = speak_to(sender, 11, "hey")
+
+    r1.memory.add_to_memory.assert_called_once()
+    assert "11" in ret
