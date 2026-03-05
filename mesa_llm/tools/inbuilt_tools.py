@@ -82,33 +82,72 @@ def move_one_step(agent: "LLMAgent", direction: str) -> str:
 
     grid = getattr(agent.model, "grid", None)
     if isinstance(grid, OrthogonalMooreGrid | OrthogonalVonNeumannGrid):
-        dx, dy = direction_map_row_col[direction]
-    else:
+        row, col = _get_agent_position(agent)
+        drow, dcol = direction_map_row_col[direction]
+        new_pos = (row + drow, col + dcol)
+
+        if grid.torus:
+            dimensions = grid.dimensions
+            if len(dimensions) == len(new_pos):
+                new_pos = tuple(coord % dim for coord, dim in zip(new_pos, dimensions))
+        elif new_pos not in grid._cells:
+            return (
+                f"Agent {agent.unique_id} is at the boundary and cannot move "
+                f"{direction}. Try a different direction."
+            )
+
+        target_cell = grid._cells.get(new_pos)
+        if target_cell is None:
+            return (
+                f"Agent {agent.unique_id} is at the boundary and cannot move "
+                f"{direction}. Try a different direction."
+            )
+
+        if target_cell.is_full:
+            return (
+                f"Agent {agent.unique_id} cannot move {direction} because "
+                "the target cell is full."
+            )
+
+        target_coordinates = tuple(target_cell.coordinate)
+        return teleport_to_location(agent, target_coordinates)
+
+    space = getattr(agent.model, "space", None)
+    grid_or_space = None
+    if isinstance(grid, SingleGrid | MultiGrid):
+        grid_or_space = grid
+    elif isinstance(space, ContinuousSpace):
+        grid_or_space = space
+
+    if grid_or_space is not None:
         dx, dy = direction_map_xy[direction]
+        x, y = _get_agent_position(agent)
+        new_pos = (x + dx, y + dy)
 
-    x, y = _get_agent_position(agent)
-
-    new_pos = (x + dx, y + dy)
-
-    # Guard against out-of-bounds moves and return a friendly message
-    # instead of letting the underlying grid raise a cryptic exception.
-    if isinstance(grid, OrthogonalMooreGrid | OrthogonalVonNeumannGrid):
-        if new_pos not in grid._cells:
-            return (
-                f"Agent {agent.unique_id} is at the boundary and cannot move "
-                f"{direction}. Try a different direction."
-            )
-    elif isinstance(grid, SingleGrid | MultiGrid):
-        nx, ny = new_pos
-        if not (0 <= nx < grid.width and 0 <= ny < grid.height):
+        if grid_or_space.torus:
+            new_pos = grid_or_space.torus_adj(new_pos)
+        elif grid_or_space.out_of_bounds(new_pos):
             return (
                 f"Agent {agent.unique_id} is at the boundary and cannot move "
                 f"{direction}. Try a different direction."
             )
 
-    target_coordinates = tuple(new_pos)
-    teleport_to_location(agent, target_coordinates)
-    return f"agent {agent.unique_id} moved to {target_coordinates}."
+        if isinstance(grid_or_space, SingleGrid) and not grid_or_space.is_cell_empty(
+            new_pos
+        ):
+            return (
+                f"Agent {agent.unique_id} cannot move {direction} because "
+                "the target cell is occupied."
+            )
+
+        target_coordinates = tuple(new_pos)
+        return teleport_to_location(agent, target_coordinates)
+
+    raise ValueError(
+        "Unsupported environment for move_one_step. Expected SingleGrid, "
+        "MultiGrid, OrthogonalMooreGrid, OrthogonalVonNeumannGrid, or "
+        "ContinuousSpace."
+    )
 
 
 @tool
@@ -138,6 +177,13 @@ def teleport_to_location(
 
     elif isinstance(agent.model.space, ContinuousSpace):
         agent.model.space.move_agent(agent, target_coordinates)
+
+    else:
+        raise ValueError(
+            "Unsupported environment for teleport_to_location. Expected "
+            "SingleGrid, MultiGrid, OrthogonalMooreGrid, "
+            "OrthogonalVonNeumannGrid, or ContinuousSpace."
+        )
 
     return f"agent {agent.unique_id} moved to {target_coordinates}."
 
