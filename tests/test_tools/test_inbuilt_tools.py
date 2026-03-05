@@ -416,6 +416,8 @@ def test_speak_to_handles_non_numeric_ids_in_list(mocker):
 
     r1.memory.add_to_memory.assert_not_called()
     assert ret is not None
+
+
 def test_move_one_step_boundary_on_continuousspace():
     model = DummyModel()
     model.grid = None
