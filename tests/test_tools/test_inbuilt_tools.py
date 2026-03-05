@@ -240,3 +240,51 @@ def test_speak_to_accepts_bare_int(mocker):
 
     r1.memory.add_to_memory.assert_called_once()
     assert "11" in ret
+
+
+def test_speak_to_handles_none_ids(mocker):
+    """LLM occasionally omits the arg entirely, arriving as None — should not crash."""
+    model = DummyModel()
+
+    sender = DummyAgent(unique_id=10, model=model)
+    r1 = DummyAgent(unique_id=11, model=model)
+    r1.memory = SimpleNamespace(add_to_memory=mocker.Mock())
+    model.agents = [sender, r1]
+
+    # None should be treated as empty recipient list, no exception
+    ret = speak_to(sender, None, "hey")
+
+    r1.memory.add_to_memory.assert_not_called()
+    assert ret is not None
+
+
+def test_speak_to_handles_malformed_string_ids(mocker):
+    """ast.literal_eval fails on garbage strings — should fall back to empty list."""
+    model = DummyModel()
+
+    sender = DummyAgent(unique_id=10, model=model)
+    r1 = DummyAgent(unique_id=11, model=model)
+    r1.memory = SimpleNamespace(add_to_memory=mocker.Mock())
+    model.agents = [sender, r1]
+
+    # Completely unparsable string — no crash, no recipients
+    ret = speak_to(sender, "not a valid list at all", "hey")
+
+    r1.memory.add_to_memory.assert_not_called()
+    assert ret is not None
+
+
+def test_speak_to_handles_non_numeric_ids_in_list(mocker):
+    """If uid coercion to int fails — should fall back to empty list, no crash."""
+    model = DummyModel()
+
+    sender = DummyAgent(unique_id=10, model=model)
+    r1 = DummyAgent(unique_id=11, model=model)
+    r1.memory = SimpleNamespace(add_to_memory=mocker.Mock())
+    model.agents = [sender, r1]
+
+    # List that looks valid but has non-numeric strings inside
+    ret = speak_to(sender, ["alice", "bob"], "hey")
+
+    r1.memory.add_to_memory.assert_not_called()
+    assert ret is not None
