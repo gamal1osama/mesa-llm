@@ -262,33 +262,38 @@ class LLMAgent(Agent):
         """
         Asynchronous version of send_message.
         """
+        recipient_ids = [r.unique_id for r in recipients]
         for recipient in [*recipients, self]:
-            await recipient.memory.aadd_to_memory(
+            memory = getattr(recipient, "memory", None)
+            if memory is None:
+                continue
+            await memory.aadd_to_memory(
                 type="message",
                 content={
                     "message": message,
                     "sender": self.unique_id,
-                    "recipients": [r.unique_id for r in recipients],
+                    "recipients": recipient_ids,
                 },
             )
-
-        return f"{self} → {recipients} : {message}"
-
+        return f"{self.unique_id} → {recipient_ids} : {message}"
     def send_message(self, message: str, recipients: list[Agent]) -> str:
         """
         Send a message to the recipients.
         """
+        recipient_ids = [r.unique_id for r in recipients]
         for recipient in [*recipients, self]:
-            recipient.memory.add_to_memory(
+            memory = getattr(recipient, "memory", None)
+            if memory is None:
+                continue
+            memory.add_to_memory(
                 type="message",
                 content={
                     "message": message,
                     "sender": self.unique_id,
-                    "recipients": [r.unique_id for r in recipients],
+                    "recipients": recipient_ids,
                 },
             )
-
-        return f"{self} → {recipients} : {message}"
+        return f"{self.unique_id} → {recipient_ids} : {message}"
 
     async def apre_step(self):
         """
