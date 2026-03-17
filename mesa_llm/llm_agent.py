@@ -1,3 +1,5 @@
+import asyncio
+
 from mesa.agent import Agent
 from mesa.discrete_space import (
     OrthogonalMooreGrid,
@@ -322,7 +324,6 @@ class LLMAgent(Agent):
         If not overridden, falls back to calling the synchronous step() method
         in a thread pool to avoid blocking the event loop.
         """
-        import asyncio
 
         if hasattr(self, "step") and self.__class__.step != LLMAgent.step:
             # Run sync step() in a thread to avoid blocking the event loop.
