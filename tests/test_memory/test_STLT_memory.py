@@ -248,6 +248,42 @@ class TestSTLTMemory:
         # Capacity is 2, no consolidation, so only 2 entries should remain
         assert len(memory.short_term_memory) <= 2
 
+    def test_consolidation_stops_when_deque_exhausted(
+        self, mock_agent, mock_llm, llm_response_factory
+    ):
+        """The guard `if self.short_term_memory` inside the eviction loop
+        prevents popping from an empty deque.  Exercise it by forcing
+        consolidation_capacity to exceed the actual deque size."""
+        mock_llm.generate.return_value = llm_response_factory("Summary")
+
+        memory = STLTMemory(
+            agent=mock_agent,
+            short_term_capacity=1,
+            consolidation_capacity=5,
+            llm_model="provider/test_model",
+        )
+        memory.llm = mock_llm
+
+        # Seed the deque with one finalized entry and one pending entry
+        memory.short_term_memory.append(
+            MemoryEntry(content={"data": "old"}, step=0, agent=mock_agent)
+        )
+        memory.short_term_memory.append(
+            MemoryEntry(content={"data": "pending"}, step=None, agent=mock_agent)
+        )
+        # Force the consolidation condition to trigger despite the small
+        # deque (2 entries).  After process_step merges the pending entry
+        # the deque still has 2, but the loop tries to pop 5 — the guard
+        # stops it after 2.
+        memory.capacity = -100
+
+        with patch("rich.console.Console"):
+            memory.process_step(pre_step=False)
+
+        # Consolidation was called with the 2 entries that were available
+        assert mock_llm.generate.called
+        assert len(memory.short_term_memory) == 0
+
     def test_observation_tracking(self, mock_agent):
         """Test that observations are properly tracked and only changes stored"""
         memory = STLTMemory(agent=mock_agent, llm_model="provider/test_model")
