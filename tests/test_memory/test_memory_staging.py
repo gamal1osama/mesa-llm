@@ -8,6 +8,7 @@ from unittest.mock import Mock
 
 import pytest
 
+from mesa_llm.memory.episodic_memory import EpisodicMemory
 from mesa_llm.memory.memory import Memory, MemoryEntry
 from mesa_llm.memory.st_lt_memory import STLTMemory
 from mesa_llm.memory.st_memory import ShortTermMemory
@@ -274,8 +275,6 @@ class TestEpisodicCommunicationHistory:
 
     def test_episodic_communication_history_with_list_messages(self, agent):
         """Cover the list branch in EpisodicMemory.get_communication_history."""
-        from mesa_llm.memory.episodic_memory import EpisodicMemory
-
         mem = EpisodicMemory(
             agent=agent, llm_model="gemini/gemini-2.0-flash", display=False
         )
@@ -296,8 +295,6 @@ class TestEpisodicCommunicationHistory:
 
     def test_episodic_communication_history_with_scalar_message(self, agent):
         """Cover the non-list (scalar) branch in EpisodicMemory.get_communication_history."""
-        from mesa_llm.memory.episodic_memory import EpisodicMemory
-
         mem = EpisodicMemory(
             agent=agent, llm_model="gemini/gemini-2.0-flash", display=False
         )
@@ -312,8 +309,6 @@ class TestEpisodicCommunicationHistory:
 
     def test_episodic_communication_history_skips_non_message_entries(self, agent):
         """Entries without a 'message' key must be skipped."""
-        from mesa_llm.memory.episodic_memory import EpisodicMemory
-
         mem = EpisodicMemory(
             agent=agent, llm_model="gemini/gemini-2.0-flash", display=False
         )
@@ -333,8 +328,6 @@ class TestEpisodicCommunicationHistory:
 
     def test_episodic_communication_history_empty(self, agent):
         """Empty memory should return empty string."""
-        from mesa_llm.memory.episodic_memory import EpisodicMemory
-
         mem = EpisodicMemory(
             agent=agent, llm_model="gemini/gemini-2.0-flash", display=False
         )
