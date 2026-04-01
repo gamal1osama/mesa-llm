@@ -93,17 +93,24 @@ class MemoryEntry:
 
 class Memory(ABC):
     """
-    Create a memory generic parent class that can be used to create different types of memories
+    Generic parent class for memory backends.
 
     Attributes:
         agent : the agent that the memory belongs to
         llm_model : the model to use for the summarization if used
         display : whether to display the memory
+        additive_event_types : event types that accumulate multiple values
+            within a step. Defaults to ``{"message", "action"}``.
 
     Content Addition
         - Before each agent step, the agent can add new events to the memory through `add_to_memory(type, content)` so that the memory can be used to reason about the most recent events as well as the past events.
-        - During the step, actions, messages, and plans are added to the memory through `add_to_memory(type, content)`
+        - During the step, content for types in ``additive_event_types`` is accumulated as a list; all other types overwrite the previous value for that step.
         - At the end of the step, the memory is processed via `process_step()`, managing when memory entries are added,consolidated, displayed, or removed
+
+    Default behavior
+        - By default, ``additive_event_types == {"message", "action"}``.
+        - Repeated ``message`` or ``action`` entries within one step are accumulated as a list.
+        - Repeated ``observation`` or ``plan`` entries within one step overwrite the previous value unless configured otherwise.
     """
 
     def __init__(
@@ -112,6 +119,7 @@ class Memory(ABC):
         llm_model: str | None = None,
         display: bool = True,
         api_base: str | None = None,
+        additive_event_types: list[str] | set[str] | tuple[str, ...] | None = None,
     ):
         """
         Initialize the memory
@@ -121,6 +129,11 @@ class Memory(ABC):
             llm_model : the model to use for summarization
             display : whether to display memory entries in the console
             api_base : the API base URL to use for the LLM provider
+            additive_event_types : event types that should accumulate multiple
+                values within the same step instead of overwriting. Defaults to
+                ``{"message", "action"}``. For example, ``message`` and
+                ``action`` accumulate by default, while ``observation`` and
+                ``plan`` overwrite unless explicitly included here.
         """
         self.agent = agent
         if llm_model:
@@ -129,7 +142,7 @@ class Memory(ABC):
         self.display = display
 
         self.step_content: dict = {}
-        self.last_observation: dict = {}
+        self.additive_event_types = set(additive_event_types or {"message", "action"})
 
     @abstractmethod
     def get_prompt_ready(self) -> str:
@@ -156,20 +169,40 @@ class Memory(ABC):
     async def aprocess_step(self, pre_step: bool = False):
         return self.process_step(pre_step)
 
-    # Event types that represent discrete, additive occurrences within a step.
-    # Multiple entries of the same type are collected into a list rather than
-    # overwriting each other (e.g. several messages received in one step).
-    ADDITIVE_EVENT_TYPES: frozenset[str] = frozenset({"message", "action"})
+    @staticmethod
+    def _coerce_additive_values(value):
+        if isinstance(value, list):
+            return list(value)
+        return [value]
+
+    def _merge_step_contents(self, current_content: dict, staged_content: dict) -> dict:
+        """
+        Merge the current step buffer with staged pre-step content.
+
+        Non-additive keys keep the staged value, matching the previous
+        overwrite semantics during finalization. Additive event types are
+        concatenated in chronological order so events from both halves of the
+        step are preserved.
+        """
+        merged = dict(current_content)
+        for key, staged_value in staged_content.items():
+            if key in self.additive_event_types and key in merged:
+                merged[key] = self._coerce_additive_values(
+                    staged_value
+                ) + self._coerce_additive_values(merged[key])
+            else:
+                merged[key] = staged_value
+        return merged
 
     def add_to_memory(self, type: str, content: dict):
         """
         Add a new entry to the memory.
 
-        For *observation* types the latest value replaces the previous one
-        (state-based).  For additive event types (messages, actions, …)
-        multiple entries within the same step are collected in a list so
-        that no data is silently lost.  All other types use simple
-        overwrite semantics (plans, reasoning steps, etc.).
+        Event types in ``self.additive_event_types`` accumulate multiple values
+        within the same step. All other types use overwrite semantics.
+        By default, ``self.additive_event_types == {"message", "action"}``.
+        For example, repeated ``message`` entries are stored as a list, while
+        repeated ``observation`` entries overwrite the previous value.
         """
         if not isinstance(content, dict):
             raise TypeError(
@@ -177,15 +210,7 @@ class Memory(ABC):
                 f"got {content.__class__.__name__}: {content!r}"
             )
 
-        if type == "observation":
-            # Only store changed parts of observation
-            changed_parts = {
-                k: v for k, v in content.items() if v != self.last_observation.get(k)
-            }
-            if changed_parts:
-                self.step_content[type] = changed_parts
-            self.last_observation = content
-        elif type in self.ADDITIVE_EVENT_TYPES:
+        if type in self.additive_event_types:
             # Accumulate discrete events so concurrent entries are preserved
             existing = self.step_content.get(type)
             if existing is None:

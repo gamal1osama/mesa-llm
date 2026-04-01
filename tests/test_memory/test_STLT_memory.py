@@ -152,23 +152,17 @@ class TestSTLTMemory:
         )
         assert memory.long_term_memory == "This is the summary text"
 
-    def test_observation_tracking(self, mock_agent):
-        """Test that observations are properly tracked and only changes stored"""
+    def test_observation_overwrites_by_default(self, mock_agent):
+        """Observations should overwrite by default unless configured additive."""
         memory = STLTMemory(agent=mock_agent, llm_model="provider/test_model")
 
-        # First observation
         obs1 = {"position": (0, 0), "health": 100}
-        memory.add_to_memory("observation", obs1)
-
-        # Same observation (should not add much to step_content)
-        memory.add_to_memory("observation", obs1)
-
-        # Changed observation
         obs2 = {"position": (1, 1), "health": 90}
+
+        memory.add_to_memory("observation", obs1)
         memory.add_to_memory("observation", obs2)
 
-        # Verify last observation is tracked
-        assert memory.last_observation == obs2
+        assert memory.step_content["observation"] == obs2
 
     def test_get_prompt_ready_returns_str(self, mock_agent):
         """Test that get_prompt_ready returns a str, not a list (issue #116)."""

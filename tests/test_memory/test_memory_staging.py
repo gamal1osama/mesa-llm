@@ -4,11 +4,12 @@ Verifies that concurrent events of the same type within a single step
 are accumulated rather than overwritten.
 """
 
-from unittest.mock import Mock
+from unittest.mock import AsyncMock, Mock
 
 import pytest
 
 from mesa_llm.memory.episodic_memory import EpisodicMemory
+from mesa_llm.memory.lt_memory import LongTermMemory
 from mesa_llm.memory.memory import Memory, MemoryEntry
 from mesa_llm.memory.st_lt_memory import STLTMemory
 from mesa_llm.memory.st_memory import ShortTermMemory
@@ -37,6 +38,47 @@ def agent():
     a.model.steps = 1
     a.step_prompt = None
     return a
+
+
+def _make_buffered_memory(kind, agent, llm_response_factory):
+    if kind == "short_term":
+        return ShortTermMemory(agent=agent, n=5, display=False)
+
+    if kind == "stlt":
+        return STLTMemory(
+            agent=agent, llm_model="gemini/gemini-2.0-flash", display=False
+        )
+
+    if kind == "long_term":
+        mem = LongTermMemory(
+            agent=agent, llm_model="gemini/gemini-2.0-flash", display=False
+        )
+        response = llm_response_factory("summary")
+        mem.llm.generate = Mock(return_value=response)
+        mem.llm.agenerate = AsyncMock(return_value=response)
+        return mem
+
+    raise ValueError(f"Unknown memory kind: {kind}")
+
+
+def _get_finalized_entry(memory):
+    if hasattr(memory, "short_term_memory"):
+        return list(memory.short_term_memory)[-1]
+    return memory.buffer
+
+
+ADDITIVE_EVENT_CASES = [
+    (
+        "message",
+        {"message": "before", "sender": "A1", "recipients": ["A3"]},
+        {"message": "after", "sender": "A2", "recipients": ["A3"]},
+    ),
+    (
+        "action",
+        {"tool_calls": [{"name": "wait", "response": "ok"}]},
+        {"tool_calls": [{"name": "move", "response": "done"}]},
+    ),
+]
 
 
 # ===================================================================
@@ -75,7 +117,7 @@ class TestAdditiveMemory:
         assert len(actions) == 2
 
     def test_observation_still_overwrites(self, agent):
-        """Observations are state-based and should keep overwrite semantics."""
+        """Types outside additive_event_types should keep overwrite semantics."""
         mem = ConcreteMemory(agent=agent)
         mem.add_to_memory("observation", {"pos": (0, 0)})
         mem.add_to_memory("observation", {"pos": (1, 1)})
@@ -84,26 +126,23 @@ class TestAdditiveMemory:
         assert isinstance(obs, dict)
         assert obs == {"pos": (1, 1)}
 
-    def test_observation_unchanged_skips_update(self, agent):
-        """Identical observation should not update step_content."""
-        mem = ConcreteMemory(agent=agent)
-        mem.add_to_memory("observation", {"pos": (0, 0)})
-        assert "observation" in mem.step_content
-
-        # Clear step_content to simulate a fresh step
-        mem.step_content = {}
-
-        # Same observation again -- changed_parts is empty
-        mem.add_to_memory("observation", {"pos": (0, 0)})
-        assert "observation" not in mem.step_content
-
     def test_non_additive_types_overwrite(self, agent):
-        """Types not in ADDITIVE_EVENT_TYPES should still overwrite."""
+        """Types not in additive_event_types should still overwrite."""
         mem = ConcreteMemory(agent=agent)
         mem.add_to_memory("Plan", {"content": "plan A"})
         mem.add_to_memory("Plan", {"content": "plan B"})
 
         assert mem.step_content["Plan"] == {"content": "plan B"}
+
+    def test_custom_additive_event_types_can_include_observation(self, agent):
+        mem = ConcreteMemory(agent=agent, additive_event_types=["observation"])
+        first = {"pos": (0, 0)}
+        second = {"pos": (1, 1)}
+
+        mem.add_to_memory("observation", first)
+        mem.add_to_memory("observation", second)
+
+        assert mem.step_content["observation"] == [first, second]
 
     def test_mixed_types_in_same_step(self, agent):
         """Different types coexist correctly in step_content."""
@@ -117,6 +156,44 @@ class TestAdditiveMemory:
         assert isinstance(mem.step_content["message"], list)
         assert len(mem.step_content["message"]) == 2
         assert isinstance(mem.step_content["Plan"], dict)
+
+    @pytest.mark.parametrize("memory_kind", ["short_term", "stlt", "long_term"])
+    @pytest.mark.parametrize(("event_type", "before", "after"), ADDITIVE_EVENT_CASES)
+    def test_buffered_memories_preserve_additive_events_across_step_boundary(
+        self, agent, llm_response_factory, memory_kind, event_type, before, after
+    ):
+        """Additive events from both halves of a step must survive finalization."""
+        mem = _make_buffered_memory(memory_kind, agent, llm_response_factory)
+
+        mem.add_to_memory(event_type, before)
+        mem.process_step(pre_step=True)
+
+        agent.model.steps = 2
+        mem.add_to_memory(event_type, after)
+        mem.process_step(pre_step=False)
+
+        finalized_entry = _get_finalized_entry(mem)
+        assert finalized_entry.content[event_type] == [before, after]
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("memory_kind", ["short_term", "stlt", "long_term"])
+    async def test_async_buffered_memories_preserve_messages_across_step_boundary(
+        self, agent, llm_response_factory, memory_kind
+    ):
+        """Async finalization should preserve pre-step and post-step messages."""
+        before = {"message": "before", "sender": "A1", "recipients": ["A3"]}
+        after = {"message": "after", "sender": "A2", "recipients": ["A3"]}
+        mem = _make_buffered_memory(memory_kind, agent, llm_response_factory)
+
+        await mem.aadd_to_memory("message", before)
+        await mem.aprocess_step(pre_step=True)
+
+        agent.model.steps = 2
+        await mem.aadd_to_memory("message", after)
+        await mem.aprocess_step(pre_step=False)
+
+        finalized_entry = _get_finalized_entry(mem)
+        assert finalized_entry.content["message"] == [before, after]
 
 
 # ===================================================================
