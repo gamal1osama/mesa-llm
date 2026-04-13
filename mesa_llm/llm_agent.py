@@ -1,4 +1,5 @@
 import logging
+import warnings
 
 from mesa.agent import Agent
 from mesa.discrete_space import (
@@ -395,6 +396,18 @@ class LLMAgent(Agent):
         await self.apre_step()
 
         if hasattr(self, "step") and self.__class__.step != LLMAgent.step:
+            if not getattr(self.__class__, "_warned_sync_astep_fallback", False):
+                warnings.warn(
+                    (
+                        f"{self.__class__.__name__}.astep() is falling back to "
+                        "synchronous step(), which may block the asyncio event "
+                        "loop. Override astep() for non-blocking behavior or use "
+                        "threading parallel stepping."
+                    ),
+                    RuntimeWarning,
+                    stacklevel=2,
+                )
+                self.__class__._warned_sync_astep_fallback = True
             self.step()
 
         await self.apost_step()
